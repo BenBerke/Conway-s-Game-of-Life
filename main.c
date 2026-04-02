@@ -1,6 +1,7 @@
+#include <stdio.h>
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
-#include <stdio.h>
+#include <SDL3_ttf/SDL_ttf.h>
 
 #include "config.h"
 #include "Headers/InputManager.h"
@@ -15,7 +16,7 @@ void initialize_grid(bool grid[ROW][COL]) {
 }
 
 void update_grid(bool grid[ROW][COL], SDL_Renderer* renderer) {
-    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+    SDL_SetRenderDrawColor(renderer, 53, 59, 61, 255);
     SDL_RenderClear(renderer);
     SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
     for (int i = 0; i < COL; i++) {
@@ -28,7 +29,9 @@ void update_grid(bool grid[ROW][COL], SDL_Renderer* renderer) {
             SDL_RenderFillRect(renderer, &rect);
         }
     }
-
+    SDL_SetRenderDrawColor(renderer, 122, 72, 122, 255);
+    SDL_FRect uiBg = { 0, TOTAL_HEIGHT - UI_HEIGHT * CELL_SIZE, SCREEN_WIDTH, UI_HEIGHT * CELL_SIZE };
+    SDL_RenderFillRect(renderer, &uiBg);
     SDL_RenderPresent(renderer);
 }
 
@@ -69,12 +72,28 @@ int main(int argc, char* argv[]) {
     }
     SDL_Window* window = NULL;
     SDL_Renderer* renderer = NULL;
-    if (SDL_CreateWindowAndRenderer("Game of Life", SCREEN_WIDTH, SCREEN_HEIGHT, 0, &window, &renderer) == false) {
+    if (SDL_CreateWindowAndRenderer("Game of Life", SCREEN_WIDTH, TOTAL_HEIGHT, 0, &window, &renderer) == false) {
         fprintf(stderr, "Window/Renderer Error: %s\n", SDL_GetError());
         SDL_Quit();
         return 1;
     }
+    if (!TTF_Init()) {
+        fprintf(stderr, "TTF_INIT failed: %s\n", SDL_GetError());
+        SDL_Quit();
+        return 1;
+    }
+    TTF_Font* font = TTF_OpenFont("../assets/ariel.ttf", 24);
+    if (!font) {
+        fprintf(stderr, "TTF_OpenFont failed: %s\n", SDL_GetError());
+        TTF_Quit();
+        SDL_Quit();
+        return 1;
+    }
+
     InputManager inputManager = {0};
+
+    TTF_TextEngine* textEngine = TTF_CreateRendererTextEngine(renderer);
+    TTF_Text* hello = TTF_CreateText(textEngine, font, "Hello world", 0);
 
     bool grid[ROW][COL];
     initialize_grid(grid);
@@ -93,6 +112,11 @@ int main(int argc, char* argv[]) {
                 int x = (int)mousePosition.x / CELL_SIZE;
                 int y = (int)mousePosition.y / CELL_SIZE;
 
+                if (x >= COL | y >= ROW){
+
+                    continue;
+                }
+
                 grid[x][y] = !grid[x][y];
                 update_grid(grid, renderer);
             }
@@ -105,6 +129,8 @@ int main(int argc, char* argv[]) {
 
     }
 
+    TTF_CloseFont(font);
+    TTF_Quit();
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SDL_Quit();
