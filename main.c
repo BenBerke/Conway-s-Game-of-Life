@@ -162,7 +162,7 @@ int main(int argc, char* argv[]) {
     create_history(&history, 32);
 
     TTF_TextEngine* textEngine = TTF_CreateRendererTextEngine(renderer);
-    TTF_Text* controls = TTF_CreateText(textEngine, font, "Hello world", 0);
+    TTF_Text* controls = TTF_CreateText(textEngine, font, "Left / Right arrow to step backwards / forwards", 0);
 
     bool grid[ROW][COL];
     initialize_grid(grid);
