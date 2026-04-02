@@ -2,40 +2,107 @@
 #include <SDL3/SDL_main.h>
 #include <stdio.h>
 
+#include "config.h"
 #include "Headers/InputManager.h"
+#include "Headers/Vector2.h"
+
+void initialize_grid(bool grid[ROW][COL]) {
+    for (int i = 0; i < COL; i++) {
+        for (int j = 0; j < ROW; j++) {
+            grid[i][j] = 0;
+        }
+    }
+}
+
+void update_grid(bool grid[ROW][COL], SDL_Renderer* renderer) {
+    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+    SDL_RenderClear(renderer);
+    SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+    for (int i = 0; i < COL; i++) {
+        for (int j = 0; j < ROW; j++) {
+            SDL_RenderLine(renderer, i * CELL_SIZE, 0, i * CELL_SIZE, SCREEN_HEIGHT);
+            SDL_RenderLine(renderer, 0, j * CELL_SIZE, SCREEN_WIDTH, j * CELL_SIZE);
+
+            if (grid[i][j] == false) continue;
+            SDL_FRect rect = { (float)i * CELL_SIZE, (float)j * CELL_SIZE, CELL_SIZE, CELL_SIZE};
+            SDL_RenderFillRect(renderer, &rect);
+        }
+    }
+
+    SDL_RenderPresent(renderer);
+}
+
+void tick(bool grid[ROW][COL]) {
+    bool snapshot[ROW][COL];
+    for (int i = 0; i < COL; i++) {
+        for (int j = 0; j < ROW; j++) {
+            snapshot[j][i] = grid[j][i];
+        }
+    }
+
+    for (int y = 0; y < COL; y++) {
+        for (int x = 0; x < ROW; x++) {
+            int liveNeighbours = 0;
+
+            for (int dy = -1; dy <= 1; dy++) {
+                for (int dx = -1; dx <= 1; dx++) {
+                    if (dy == 0 && dx == 0) continue;
+
+                    int nx = x + dx;
+                    int ny = y + dy;
+
+                    if (nx < 0 || nx >= COL || ny < 0 || ny >= ROW) continue;
+                    if (snapshot[nx][ny]) liveNeighbours++;
+                }
+            }
+
+            if (snapshot[y][x]) grid[y][x] = !(liveNeighbours < 2 || liveNeighbours > 3);
+            else grid[y][x] = liveNeighbours == 3;
+        }
+    }
+}
 
 int main(int argc, char* argv[]) {
     if (SDL_Init(SDL_INIT_VIDEO) == false) {
         fprintf(stderr, "SDL_Init Error: %s\n", SDL_GetError());
         return 1;
     }
-
     SDL_Window* window = NULL;
     SDL_Renderer* renderer = NULL;
-
-    if (SDL_CreateWindowAndRenderer("Game of Life", 800, 600, 0, &window, &renderer) == false) {
+    if (SDL_CreateWindowAndRenderer("Game of Life", SCREEN_WIDTH, SCREEN_HEIGHT, 0, &window, &renderer) == false) {
         fprintf(stderr, "Window/Renderer Error: %s\n", SDL_GetError());
         SDL_Quit();
         return 1;
     }
-
     InputManager inputManager = {0};
 
-    bool quit = false;
+    bool grid[ROW][COL];
+    initialize_grid(grid);
+    update_grid(grid, renderer);
 
-    while (!quit) {
+    bool running = true;
+    bool editMode = true;
+    while (running) {
         input_manager_begin_frame(&inputManager);
+        Vector2 mousePosition = input_manager_get_mouse_position(&inputManager);
 
-        if (input_manager_get_key_down(&inputManager, SDL_SCANCODE_ESCAPE)) quit = true;
+        if (input_manager_get_key_down(&inputManager, SDL_SCANCODE_ESCAPE)) running = false;
+        if (input_manager_get_key_down(&inputManager, SDL_SCANCODE_E)) editMode = !editMode;
+        if (editMode) {
+            if (input_manager_get_mouse_down(&inputManager, SDL_BUTTON_LEFT)) {
+                int x = (int)mousePosition.x / CELL_SIZE;
+                int y = (int)mousePosition.y / CELL_SIZE;
 
-        SDL_SetRenderDrawColor(renderer, 33, 33, 33, 255);
-        SDL_RenderClear(renderer);
+                grid[x][y] = !grid[x][y];
+                update_grid(grid, renderer);
+            }
+            continue;
+        }
+        if (input_manager_get_key_down(&inputManager, SDL_SCANCODE_X)) {
+            tick(grid);
+            update_grid(grid, renderer);
+        }
 
-        SDL_FRect rect = { 350.0f, 250.0f, 100.0f, 100.0f };
-        SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
-        SDL_RenderFillRect(renderer, &rect);
-
-        SDL_RenderPresent(renderer);
     }
 
     SDL_DestroyRenderer(renderer);

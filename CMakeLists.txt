@@ -5,7 +5,10 @@ set(CMAKE_C_STANDARD 11)
 
 add_executable(conway main.c
         Headers/InputManager.h
-        src/InputManager.c)
+        src/InputManager.c
+        config.h
+        Headers/Vector2.h
+        src/Vector2.c)
 
 find_package(SDL3 REQUIRED CONFIG)
 
