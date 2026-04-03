@@ -5,10 +5,10 @@
 #ifndef CONWAY_CONFIG_H
 #define CONWAY_CONFIG_H
 
-#define CELL_SIZE 45
+#define CELL_SIZE 40
 
-#define ROW 16
-#define COL 16
+#define ROW 25
+#define COL ROW
 
 #define SCREEN_WIDTH ROW * CELL_SIZE
 #define SCREEN_HEIGHT ROW * CELL_SIZE
@@ -22,5 +22,7 @@
 #define TEXT_Y SCREEN_HEIGHT + UI_HEIGHT * CELL_SIZE / 2 - FONT_SIZE / 2
 
 #define MAX_HISTORY_SIZE 32
+
+#define STEP_TIME 450
 
 #endif //CONWAY_CONFIG_H

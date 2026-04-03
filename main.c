@@ -88,6 +88,7 @@ void update_grid(bool grid[ROW][COL], SDL_Renderer* renderer) {
             SDL_RenderLine(renderer, i * CELL_SIZE, 0, i * CELL_SIZE, SCREEN_HEIGHT);
             SDL_RenderLine(renderer, 0, j * CELL_SIZE, SCREEN_WIDTH, j * CELL_SIZE);
             if (grid[i][j] == false) continue;
+
             SDL_FRect rect = { (float)i * CELL_SIZE, (float)j * CELL_SIZE, CELL_SIZE, CELL_SIZE};
             SDL_RenderFillRect(renderer, &rect);
         }
@@ -115,11 +116,7 @@ void tick(bool grid[ROW][COL]) {
                 }
             }
 
-            if (snapshot[y][x]) {
-                grid[y][x] = !(liveNeighbours < 2 || liveNeighbours > 3);
-            } else {
-                grid[y][x] = (liveNeighbours == 3);
-            }
+            grid[y][x] = snapshot[y][x] ? !(liveNeighbours < 2 || 3 < liveNeighbours) : liveNeighbours == 3;
         }
     }
 }
@@ -128,6 +125,14 @@ void set_grid(bool grid[ROW][COL], bool (*snapshot)[ROW][COL]) {
     for (int i = 0; i < COL; i++) {
         for (int j = 0; j < ROW; j++) {
             grid[j][i] = snapshot[j][i];
+        }
+    }
+}
+
+void reset_grid(bool grid[ROW][COL]) {
+    for (int i = 0; i < COL; i++) {
+        for (int j = 0; j < ROW; j++) {
+            grid[j][i] = 0;
         }
     }
 }
@@ -162,7 +167,7 @@ int main(int argc, char* argv[]) {
     create_history(&history, 32);
 
     TTF_TextEngine* textEngine = TTF_CreateRendererTextEngine(renderer);
-    TTF_Text* controls = TTF_CreateText(textEngine, font, "Left / Right arrow to step backwards / forwards", 0);
+    TTF_Text* controls = TTF_CreateText(textEngine, font, "Left / Right arrow to step backwards / forwards. Space to auto step", 0);
 
     bool grid[ROW][COL];
     initialize_grid(grid);
@@ -170,17 +175,22 @@ int main(int argc, char* argv[]) {
     push_history(&history, grid);
     int currentView = 0;
 
+    unsigned long long timePassed = 0;
+
+    bool stepping = false;
+
     bool running = true;
     while (running) {
+        const unsigned long long startTime = SDL_GetTicks();
         input_manager_begin_frame(&inputManager);
-        Vector2 mousePosition = input_manager_get_mouse_position(&inputManager);
+        const Vector2 mousePosition = input_manager_get_mouse_position(&inputManager);
 
         if (input_manager_get_key_down(&inputManager, SDL_SCANCODE_ESCAPE)) running = false;
 
         SDL_SetRenderDrawColor(renderer,69, 61, 69, 255);
         SDL_RenderClear(renderer);
 
-        if (input_manager_get_mouse_down(&inputManager, SDL_BUTTON_LEFT)) {
+        if (input_manager_get_mouse_down(&inputManager, SDL_BUTTON_LEFT) && !stepping) {
             int x = (int)mousePosition.x / CELL_SIZE;
             int y = (int)mousePosition.y / CELL_SIZE;
 
@@ -192,14 +202,14 @@ int main(int argc, char* argv[]) {
                 currentView = history.count - 1;
             }
         }
-        if (input_manager_get_key_down(&inputManager, SDL_SCANCODE_LEFT)) {
+        if (input_manager_get_key_down(&inputManager, SDL_SCANCODE_LEFT) && !stepping) {
             if (currentView > 0) {
                 currentView--;
                 load_history_state(grid, &history, currentView);
             }
         }
 
-        if (input_manager_get_key_down(&inputManager, SDL_SCANCODE_RIGHT)) {
+        if (input_manager_get_key_down(&inputManager, SDL_SCANCODE_RIGHT) || (stepping && timePassed >= (float)STEP_TIME)) {
             if (currentView < history.count - 1) {
                 currentView++;
                 load_history_state(grid, &history, currentView);
@@ -208,7 +218,12 @@ int main(int argc, char* argv[]) {
                 push_history(&history, grid);
                 currentView = history.count - 1;
             }
+            timePassed = 0;
         }
+
+        if (input_manager_get_key_down(&inputManager, SDL_SCANCODE_R)) reset_grid(grid);
+
+        if (input_manager_get_key_down(&inputManager, SDL_SCANCODE_SPACE)) stepping = !stepping;
 
         SDL_SetRenderDrawColor(renderer, 71, 115, 145, 255);
         SDL_FRect rect = { 0,  SCREEN_HEIGHT, SCREEN_WIDTH, CELL_SIZE * UI_HEIGHT};
@@ -219,6 +234,8 @@ int main(int argc, char* argv[]) {
 
         update_grid(grid, renderer);
         SDL_RenderPresent(renderer);
+
+        timePassed += SDL_GetTicks() - startTime;
     }
 
     free_history(&history);
